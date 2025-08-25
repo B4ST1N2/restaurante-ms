@@ -1,4 +1,4 @@
-name: CI/CD - Production (Docker, manual)
+name: CI/CD - Production (Docker → Render, manual)
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ env:
 
 jobs:
   build-and-test:
-    name: Build & Test
+    name: Build & Test (prod)
     runs-on: ubuntu-latest
     outputs:
       image-tag: ${{ steps.set_tag.outputs.image_tag }}
@@ -28,17 +28,18 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
 
-      - name: Run tests and jacoco
-        run: mvn -B clean verify
+      - name: Run tests and jacoco (prod threshold 85%)
+        run: mvn -B -Djacoco.line.covered.ratio=0.85 clean verify
 
       - name: Set image tag
         id: set_tag
-        run: echo "::set-output name=image_tag::${{ github.sha }}"
+        run: echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
 
-      - name: Upload jacoco report
+      - name: Upload jacoco report (prod)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: jacoco-report
+          name: jacoco-report-prod
           path: target/site/jacoco
 
   wait-for-approval:
@@ -48,10 +49,10 @@ jobs:
     environment:
       name: production
     steps:
-      - run: echo "Waiting for approval in GitHub Environment 'production'"
+      - run: echo "Waiting approval for production deploy"
 
-  build-push-deploy:
-    name: Build, Push & Deploy to Prod
+  build-and-push:
+    name: Build, Push & Trigger Deploy (prod)
     needs: wait-for-approval
     runs-on: ubuntu-latest
     steps:
@@ -71,23 +72,14 @@ jobs:
           docker build -t $IMAGE .
           docker push $IMAGE
 
-      - name: Deploy to production server (SSH)
+      - name: Trigger Render deploy (prod)
+        if: success()
         env:
-          IMAGE: ${{ secrets.DOCKER_REGISTRY_HOST }}/${{ secrets.DOCKER_REPO }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-test.outputs.image-tag }}
-          PROD_USER: ${{ secrets.PROD_USER }}
-          PROD_HOST: ${{ secrets.PROD_HOST }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_PROD_SERVICE_ID: ${{ secrets.RENDER_PROD_SERVICE_ID }}
         run: |
-          echo "$PROD_SSH_PRIVATE_KEY" > key_prod.pem || true
-          chmod 600 key_prod.pem || true
-          scp -o StrictHostKeyChecking=no -i key_prod.pem deploy/docker-compose-prod.yml $PROD_USER@$PROD_HOST:/home/$PROD_USER/docker-compose-prod.yml
-          ssh -o StrictHostKeyChecking=no -i key_prod.pem $PROD_USER@$PROD_HOST "
-            export IMAGE=$IMAGE
-            cat > /home/$PROD_USER/.env <<EOF
-  IMAGE=$IMAGE
-  DB_URL=${{ secrets.PROD_DB_URL }}
-  DB_USER=${{ secrets.PROD_DB_USER }}
-  DB_PASS=${{ secrets.PROD_DB_PASS }}
-  EOF
-  docker pull \$IMAGE || true
-  IMAGE=\$IMAGE docker-compose -f /home/$PROD_USER/docker-compose-prod.yml up -d --remove-orphans
-  "
+          echo "Triggering render deploy for $IMAGE"
+          curl -X POST "https://api.render.com/v1/services/${RENDER_PROD_SERVICE_ID}/deploys" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{}'

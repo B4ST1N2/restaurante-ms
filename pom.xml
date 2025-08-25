@@ -28,6 +28,7 @@
 	</scm>
 	<properties>
 		<java.version>17</java.version>
+		<jacoco.line.covered.ratio>0.80</jacoco.line.covered.ratio>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -38,6 +39,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
 
 		<dependency>
 			<groupId>com.mysql</groupId>
@@ -94,16 +101,13 @@
 				<version>0.8.10</version>
 				<executions>
 					<execution>
-						<goals>
-							<goal>prepare-agent</goal>
-						</goals>
+						<goals><goal>prepare-agent</goal></goals>
 					</execution>
+
 					<execution>
 						<id>report</id>
 						<phase>prepare-package</phase>
-						<goals>
-							<goal>report</goal>
-						</goals>
+						<goals><goal>report</goal></goals>
 						<configuration>
 							<excludes>
 								<exclude>com/example/Restaurante_ms/model/*</exclude>
@@ -111,12 +115,11 @@
 							</excludes>
 						</configuration>
 					</execution>
+
 					<execution>
 						<id>check</id>
 						<phase>verify</phase>
-						<goals>
-							<goal>check</goal>
-						</goals>
+						<goals><goal>check</goal></goals>
 						<configuration>
 							<rules>
 								<rule>
@@ -125,7 +128,7 @@
 										<limit>
 											<counter>LINE</counter>
 											<value>COVEREDRATIO</value>
-											<minimum>0.80</minimum> <!-- Porcentaje de covertura -->
+											<minimum>${jacoco.line.covered.ratio}</minimum>
 										</limit>
 									</limits>
 								</rule>
