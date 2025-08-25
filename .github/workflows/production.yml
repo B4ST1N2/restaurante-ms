@@ -1,0 +1,93 @@
+name: CI/CD - Production (Docker, manual)
+
+on:
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: restaurante
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.set_tag.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: eclipse-temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Cache Maven local repo
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+
+      - name: Run tests and jacoco
+        run: mvn -B clean verify
+
+      - name: Set image tag
+        id: set_tag
+        run: echo "::set-output name=image_tag::${{ github.sha }}"
+
+      - name: Upload jacoco report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco
+
+  wait-for-approval:
+    name: Wait for approval (GitHub Environment)
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - run: echo "Waiting for approval in GitHub Environment 'production'"
+
+  build-push-deploy:
+    name: Build, Push & Deploy to Prod
+    needs: wait-for-approval
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Docker Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY_HOST }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push image
+        env:
+          IMAGE: ${{ secrets.DOCKER_REGISTRY_HOST }}/${{ secrets.DOCKER_REPO }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-test.outputs.image-tag }}
+        run: |
+          docker build -t $IMAGE .
+          docker push $IMAGE
+
+      - name: Deploy to production server (SSH)
+        env:
+          IMAGE: ${{ secrets.DOCKER_REGISTRY_HOST }}/${{ secrets.DOCKER_REPO }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-test.outputs.image-tag }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+        run: |
+          echo "$PROD_SSH_PRIVATE_KEY" > key_prod.pem || true
+          chmod 600 key_prod.pem || true
+          scp -o StrictHostKeyChecking=no -i key_prod.pem deploy/docker-compose-prod.yml $PROD_USER@$PROD_HOST:/home/$PROD_USER/docker-compose-prod.yml
+          ssh -o StrictHostKeyChecking=no -i key_prod.pem $PROD_USER@$PROD_HOST "
+            export IMAGE=$IMAGE
+            cat > /home/$PROD_USER/.env <<EOF
+  IMAGE=$IMAGE
+  DB_URL=${{ secrets.PROD_DB_URL }}
+  DB_USER=${{ secrets.PROD_DB_USER }}
+  DB_PASS=${{ secrets.PROD_DB_PASS }}
+  EOF
+  docker pull \$IMAGE || true
+  IMAGE=\$IMAGE docker-compose -f /home/$PROD_USER/docker-compose-prod.yml up -d --remove-orphans
+  "
