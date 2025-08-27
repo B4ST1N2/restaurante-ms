@@ -66,11 +66,13 @@ jobs:
           TAG: ${{ needs.build-and-test.outputs.image-tag }}
         run: |
           IMAGE="${REGISTRY}/${USERNAME}/${REPO}:${TAG}"
-          echo ">> Building & pushing IMAGE = $IMAGE"
-          docker build -t $IMAGE .
+          echo ">> IMAGE construido = $IMAGE"
+          
           echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin "$REGISTRY"
+          docker build -t $IMAGE .
           docker push $IMAGE
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
 
 
       - name: Trigger Render deploy (staging)
