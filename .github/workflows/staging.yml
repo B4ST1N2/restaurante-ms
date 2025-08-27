@@ -65,10 +65,17 @@ jobs:
         run: echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
 
       - name: Build and push image
+        env:
+          REGISTRY: ${{ secrets.DOCKER_REGISTRY_HOST }}
+          USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          REPO: ${{ secrets.DOCKER_REPO }}
+          PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          TAG: ${{ needs.build-and-test.outputs.image-tag }}
         run: |
-          IMAGE="${DOCKER_REGISTRY_HOST}/${DOCKER_REPO}:${{ steps.set_tag.outputs.image_tag }}"
+          IMAGE="${REGISTRY}/${REPO}:${TAG}"
+          echo ">> IMAGE = $IMAGE"
           docker build -t $IMAGE .
-          echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin $DOCKER_REGISTRY_HOST
+          echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin "$REGISTRY"
           docker push $IMAGE
 
 
