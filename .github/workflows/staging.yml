@@ -58,20 +58,13 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push image
-        env:
-          REGISTRY: ${{ secrets.DOCKER_REGISTRY_HOST }}
-          USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          REPO: ${{ secrets.DOCKER_REPO }}
-          PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          TAG: ${{ needs.build-and-test.outputs.image-tag }}
         run: |
-          IMAGE="${REGISTRY}/${USERNAME}/${REPO}:${TAG}"
-          echo ">> IMAGE construido = $IMAGE"
-          
-          echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin "$REGISTRY"
-          docker build -t $IMAGE .
-          docker push $IMAGE
+          IMAGE=${{ secrets.DOCKER_REGISTRY_HOST }}/${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:${{ github.sha }}
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+          docker build -t $IMAGE .
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin ${{ secrets.DOCKER_REGISTRY_HOST }}
+          docker push $IMAGE
+
 
 
 
