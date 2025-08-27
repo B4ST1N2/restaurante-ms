@@ -57,13 +57,6 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Debug IMAGE
-        run: echo "Pushing IMAGE = $IMAGE"
-
-      - name: Set Docker image tag
-        id: set_tag
-        run: echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
-
       - name: Build and push image
         env:
           REGISTRY: ${{ secrets.DOCKER_REGISTRY_HOST }}
@@ -72,19 +65,19 @@ jobs:
           PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           TAG: ${{ needs.build-and-test.outputs.image-tag }}
         run: |
-          IMAGE="${REGISTRY}/${REPO}:${TAG}"
-          echo ">> IMAGE = $IMAGE"
+          IMAGE="${REGISTRY}/${USERNAME}/${REPO}:${TAG}"
+          echo ">> Building & pushing IMAGE = $IMAGE"
           docker build -t $IMAGE .
           echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin "$REGISTRY"
           docker push $IMAGE
-
-
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV   # <-- export IMAGE para el siguiente paso
 
       - name: Trigger Render deploy (staging)
         if: success()
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_STAGING_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
+          IMAGE: ${{ env.IMAGE }}
         run: |
           echo "Triggering render deploy for $IMAGE"
           curl -X POST "https://api.render.com/v1/services/${RENDER_STAGING_SERVICE_ID}/deploys" \

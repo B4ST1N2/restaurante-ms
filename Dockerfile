@@ -9,7 +9,8 @@ COPY .mvn .mvn
 COPY pom.xml .
 
 # cache dependencies
-RUN ./mvnw -q -N -DskipTests dependency:go-offline
+RUN ./mvnw -B -DskipTests dependency:go-offline
+
 
 # Copia código y empaqueta
 COPY src ./src
