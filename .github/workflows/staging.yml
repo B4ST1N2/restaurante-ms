@@ -77,5 +77,5 @@ jobs:
         with:
           token: ${{ secrets.GH_PAT }}
           repository: ${{ github.repository }}
-          event: "deploy-production"
+          event-type: "deploy-production" # <-- CAMBIO AQUÍ
           client-payload: '{"ref": "${{ github.ref }}"}'
