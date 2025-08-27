@@ -117,6 +117,7 @@
 							<excludes>
 								<exclude>com/example/Restaurante_ms/model/*</exclude>
 								<exclude>com/example/Restaurante_ms/repository/*</exclude>
+								<exclude>com/example/Restaurante_ms/RestauranteMsApplication</exclude>
 							</excludes>
 						</configuration>
 					</execution>
