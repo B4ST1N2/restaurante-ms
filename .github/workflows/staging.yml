@@ -4,6 +4,10 @@ on:
   push:
     branches: ["trunk"]
 
+permissions:
+  contents: read
+  workflows: write
+
 env:
   IMAGE_NAME: restaurante
 
@@ -14,7 +18,8 @@ jobs:
     outputs:
       image-tag: ${{ steps.set_tag.outputs.image_tag }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -47,8 +52,9 @@ jobs:
     name: Trigger Render to build from repo (staging)
     needs: build-and-test
     runs-on: ubuntu-latest
+    if: ${{ success() }}
     steps:
-      - name: Checkout (optional, kept for consistency)
+      - name: Checkout (optional)
         uses: actions/checkout@v4
 
       - name: Trigger Render rebuild (Render will build using Dockerfile in repo)
@@ -57,7 +63,22 @@ jobs:
           RENDER_STAGING_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
         run: |
           echo "Triggering render rebuild for staging (Render will build using Dockerfile in repo)"
-          curl -X POST "https://api.render.com/v1/services/${RENDER_STAGING_SERVICE_ID}/deploys" \
+          curl -s -X POST "https://api.render.com/v1/services/${RENDER_STAGING_SERVICE_ID}/deploys" \
             -H "Authorization: Bearer ${RENDER_API_KEY}" \
             -H "Content-Type: application/json" \
-            -d '{}'
+            -d '{}' \
+          || (echo "Render API call failed"; exit 1)
+
+  trigger-production-workflow:
+    name: Trigger production workflow (only if staging passed)
+    needs: trigger-render-build
+    runs-on: ubuntu-latest
+    if: ${{ success() }}
+    steps:
+      - name: Trigger production workflow_dispatch
+        uses: peter-evans/workflow-dispatch@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          workflow: "ci-production.yml"
+          ref: trunk
