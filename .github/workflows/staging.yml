@@ -43,48 +43,21 @@ jobs:
           name: jacoco-report-staging
           path: target/site/jacoco
 
-  build-and-push:
-    name: Build, Push & Trigger Deploy (staging)
+  trigger-render-build:
+    name: Trigger Render to build from repo (staging)
     needs: build-and-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (optional, kept for consistency)
+        uses: actions/checkout@v4
 
-      - name: Login to Docker Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ secrets.DOCKER_REGISTRY_HOST }}
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push image
-        env:
-          REGISTRY: ${{ secrets.DOCKER_REGISTRY_HOST }}
-          USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          REPO: ${{ secrets.DOCKER_REPO }}
-          PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          TAG: ${{ needs.build-and-test.outputs.image-tag }}
-        run: |
-          IMAGE="${REGISTRY}/${USERNAME}/${REPO}:${TAG}"
-          echo ">> IMAGE construido = $IMAGE"
-          
-          echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin "$REGISTRY"
-          docker build -t $IMAGE .
-          docker push $IMAGE
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-
-
-
-      - name: Trigger Render deploy (staging)
-        if: success()
+      - name: Trigger Render rebuild (Render will build using Dockerfile in repo)
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_STAGING_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
-          IMAGE: ${{ env.IMAGE }}
         run: |
-          echo "Triggering render deploy for $IMAGE"
+          echo "Triggering render rebuild for staging (Render will build using Dockerfile in repo)"
           curl -X POST "https://api.render.com/v1/services/${RENDER_STAGING_SERVICE_ID}/deploys" \
             -H "Authorization: Bearer ${RENDER_API_KEY}" \
             -H "Content-Type: application/json" \
-            -d "{\"image\":{\"url\":\"$IMAGE\"}}"
-
+            -d '{}'
