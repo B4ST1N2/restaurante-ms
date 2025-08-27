@@ -14,7 +14,8 @@ RUN ./mvnw -B -DskipTests dependency:go-offline
 
 # Copia código y empaqueta
 COPY src ./src
-RUN ./mvnw -B -DskipTests package -DskipITs
+RUN ./mvnw -B clean package -DskipTests
+
 
 # Runtime stage
 FROM eclipse-temurin:17-jre-jammy
