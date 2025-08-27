@@ -4,10 +4,7 @@ on:
   push:
     branches: ["trunk"]
 
-permissions:
-  contents: read
-  workflows: write
-
+# permissions removed to avoid schema validation error.
 env:
   IMAGE_NAME: restaurante
 
@@ -78,7 +75,7 @@ jobs:
       - name: Trigger production workflow_dispatch
         uses: peter-evans/workflow-dispatch@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_PAT }}
           repository: ${{ github.repository }}
           workflow: "ci-production.yml"
           ref: trunk

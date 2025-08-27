@@ -3,9 +3,6 @@ name: CI/CD - Production (Docker → Render, manual)
 on:
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 env:
   IMAGE_NAME: restaurante
 
