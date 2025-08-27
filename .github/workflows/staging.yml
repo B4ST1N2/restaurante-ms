@@ -70,7 +70,8 @@ jobs:
           docker build -t $IMAGE .
           echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin "$REGISTRY"
           docker push $IMAGE
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV   # <-- export IMAGE para el siguiente paso
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
 
       - name: Trigger Render deploy (staging)
         if: success()
