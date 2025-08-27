@@ -73,9 +73,9 @@ jobs:
     if: ${{ success() }}
     steps:
       - name: Trigger production workflow_dispatch
-        uses: peter-evans/workflow-dispatch@v1
+        uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.GH_PAT }}
           repository: ${{ github.repository }}
-          workflow: "ci-production.yml"
-          ref: trunk
+          event: "deploy-production"
+          client-payload: '{"ref": "${{ github.ref }}"}'
