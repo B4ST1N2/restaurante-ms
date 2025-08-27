@@ -1,15 +1,15 @@
-name: CI/CD - Staging (Docker → Render)
+name: CI/CD - Staging → Production (Render builds from repo)
 
 on:
   push:
     branches: ["trunk"]
 
-# permissions removed to avoid schema validation error.
 env:
   IMAGE_NAME: restaurante
 
 jobs:
-  build-and-test:
+  # ---------- STAGING ----------
+  build-and-test-staging:
     name: Build & Test (staging)
     runs-on: ubuntu-latest
     outputs:
@@ -45,15 +45,12 @@ jobs:
           name: jacoco-report-staging
           path: target/site/jacoco
 
-  trigger-render-build:
-    name: Trigger Render to build from repo (staging)
-    needs: build-and-test
+  trigger-render-staging:
+    name: Trigger Render (staging)
+    needs: build-and-test-staging
     runs-on: ubuntu-latest
     if: ${{ success() }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Trigger Render rebuild (staging)
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -66,16 +63,68 @@ jobs:
             -d '{}' \
           || (echo "Render API call failed"; exit 1)
 
-  trigger-production-workflow:
-    name: Trigger production workflow (only if staging passed)
-    needs: trigger-render-build
+  # ---------- PRODUCTION (only after staging passed) ----------
+  build-and-test-prod:
+    name: Build & Test (prod)
+    needs: trigger-render-staging
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.set_tag.outputs.image_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Cache Maven local repo
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+
+      - name: Run tests and jacoco (prod threshold 85%)
+        run: mvn -B -Djacoco.line.covered.ratio=0.85 clean verify
+
+      - name: Set image tag
+        id: set_tag
+        run: echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Upload jacoco report (prod)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report-prod
+          path: target/site/jacoco
+
+  wait-for-approval:
+    name: Wait for approval (GitHub Environment)
+    needs: build-and-test-prod
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Waiting approval for production deploy
+        run: echo "Waiting approval for production deploy - check Environments -> production in repo settings for required approvers."
+
+  trigger-render-prod:
+    name: Trigger Render (production)
+    needs: wait-for-approval
     runs-on: ubuntu-latest
     if: ${{ success() }}
     steps:
-      - name: Trigger production workflow_dispatch
-        uses: peter-evans/workflow-dispatch@v1
-        with:
-          token: ${{ secrets.GH_PAT }}
-          repository: ${{ github.repository }}
-          workflow: "ci-production.yml"
-          ref: trunk
+      - name: Trigger Render rebuild (production)
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_PROD_SERVICE_ID: ${{ secrets.RENDER_PROD_SERVICE_ID }}
+        run: |
+          echo "Triggering render rebuild for production (Render will build using Dockerfile in repo)"
+          curl -s -X POST "https://api.render.com/v1/services/${RENDER_PROD_SERVICE_ID}/deploys" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+          || (echo "Render API call failed"; exit 1)
