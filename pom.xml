@@ -113,13 +113,6 @@
 						<id>report</id>
 						<phase>prepare-package</phase>
 						<goals><goal>report</goal></goals>
-						<configuration>
-							<excludes>
-								<exclude>com/example/Restaurante_ms/model/*</exclude>
-								<exclude>com/example/Restaurante_ms/repository/*</exclude>
-								<exclude>com/example/Restaurante_ms/RestauranteMsApplication</exclude>
-							</excludes>
-						</configuration>
 					</execution>
 
 					<execution>
