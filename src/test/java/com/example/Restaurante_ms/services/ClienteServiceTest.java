@@ -45,7 +45,7 @@ class ClienteServiceTest {
         List<Cliente> clientes = Arrays.asList(cliente);
         when(clienteRepository.findAll()).thenReturn(clientes);
         List<Cliente> result = clienteService.obtenerClientes();
-        assertEquals(2, result.size());
+        assertEquals(1, result.size());
         verify(clienteRepository, times(1)).findAll();
     }
 
