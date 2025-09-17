@@ -15,10 +15,17 @@ public class CocineroService {
     private CocineroRepository cocineroRepository;
 
     public Cocinero crearCocinero(Cocinero cocinero) {
-        if (cocineroRepository.existsById(cocinero.getCodigoEmpleado())) {
-            throw new RuntimeException("Ya existe un cocinero con el código: " + cocinero.getCodigoEmpleado());
-        }
+        cocinero.setCodigoEmpleado(null); // aseguramos autogenerado
         return cocineroRepository.save(cocinero);
+    }
+
+
+    public Cocinero crearDesdeDTO(String nombre, double salario, String especialidad) {
+        Cocinero c = new Cocinero();
+        c.setNombre(nombre);
+        c.setSalario(salario);
+        c.setEspecialidad(especialidad);
+        return cocineroRepository.save(c);
     }
 
     public List<Cocinero> listarCocineros() {
