@@ -1,16 +1,13 @@
 package com.example.Restaurante_ms.controller;
 
-import com.example.Restaurante_ms.api.dto.CocineroDTO;
-import com.example.Restaurante_ms.api.dto.CrearCocineroRequest;
+
 import com.example.Restaurante_ms.model.Cocinero;
 import com.example.Restaurante_ms.services.CocineroService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-
-import java.net.URI;
+;
 import java.util.List;
 
 @RestController
@@ -19,25 +16,9 @@ public class CocineroController {
     @Autowired
     private CocineroService cocineroService;
 
-    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<CrearCocineroRequest> agregarCocinero(@RequestBody CrearCocineroRequest request) {
-        CocineroDTO dto = request.getCocinero();
-
-        Cocinero guardado = cocineroService.crearDesdeDTO(
-                dto.getNombre(),
-                dto.getSalario(),
-                dto.getEspecialidad()
-        );
-
-        dto.setCodigoEmpleado(guardado.getCodigoEmpleado());
-
-        URI location = ServletUriComponentsBuilder
-                .fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(guardado.getCodigoEmpleado())
-                .toUri();
-
-        return ResponseEntity.created(location).body(request);
+    @PostMapping
+    public Cocinero agregarCocinero(@RequestBody Cocinero cocinero) {
+        return cocineroService.crearCocinero(cocinero);
     }
 
     @GetMapping("/all")
