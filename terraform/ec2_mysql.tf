@@ -1,10 +1,20 @@
+# AMI Ubuntu 22.04 LTS (Canonical)
 data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["099720109477"]
-  filter { name = "name" values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"] }
-  filter { name = "virtualization-type" values = ["hvm"] }
+  owners      = ["099720109477"] # Canonical
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
 }
 
+# Instancia EC2 que hará de VM con MySQL y donde correrás la API
 resource "aws_instance" "db" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
@@ -12,6 +22,7 @@ resource "aws_instance" "db" {
   vpc_security_group_ids = [aws_security_group.ssh.id]
   key_name               = aws_key_pair.ssh.key_name
 
+  # Bootstrap: instala MySQL y Java, crea BD/usuario
   user_data = <<-EOF
               #!/bin/bash
               set -euxo pipefail
@@ -19,7 +30,7 @@ resource "aws_instance" "db" {
               apt-get update -y
               DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server openjdk-17-jre
 
-              # Configura MySQL
+              # Configurar MySQL (root + BD + usuario app)
               mysql --protocol=socket -u root <<SQL
               ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${var.db_password}';
               FLUSH PRIVILEGES;
